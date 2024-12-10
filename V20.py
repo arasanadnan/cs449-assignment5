@@ -28,8 +28,6 @@ countdown_after_id = None
 countdown_remaining = 0
 letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
-# Utils Functions
-############################
 def is_finger_extended(hand_landmarks, finger_name):
     finger_tips = {
         'thumb': mp_hands.HandLandmark.THUMB_TIP,
@@ -99,7 +97,7 @@ def cancel_countdown():
 def start_countdown(button_key):
     global countdown_remaining, hovered_button
     hovered_button = button_key
-    countdown_remaining = 3  # Reduced to 3 seconds
+    countdown_remaining = 3
     update_countdown()
 
 def update_countdown():
@@ -133,8 +131,6 @@ def get_timer_label(button_key):
         return timers.get(button_key)
     return None
 
-# Start Screen
-############################
 def confirm_selection_start_screen(button_key):
     global start_screen_active, signup_screen_active
     if selected_button == button_key and start_screen_active:
@@ -153,10 +149,12 @@ def hover_start_screen_button(button_key):
 
 def check_cursor_over_button_start_screen(x,y):
     global selected_button
+    start_button_width=150
+    start_button_height=70
     over_button=None
     for key in start_buttons:
         bx,by=start_button_positions[key]
-        bw,bh=150,70
+        bw,bh=start_button_width,start_button_height
         if (bx-bw/2)<=x<=(bx+bw/2) and (by-bh/2)<=y<=(by+bh/2):
             over_button=key
             break
@@ -170,8 +168,6 @@ def check_cursor_over_button_start_screen(x,y):
     else:
         reset_selection()
 
-# Signup Screen
-############################
 def load_signup():
     global signup_screen_active, signup_frame, player_name
     signup_screen_active = True
@@ -197,7 +193,6 @@ def load_signup():
     letter_width=60
     letter_height=40
 
-    # Place letters A-Z for username signup
     for i,letter in enumerate(letters):
         row=i//cols
         col=i%cols
@@ -208,7 +203,6 @@ def load_signup():
         scanvas.create_window(x_pos,y_pos,window=signup_buttons[letter],width=letter_width,height=letter_height)
         scanvas.create_window(x_pos,y_pos+letter_height/2+10,window=signup_timers[letter],width=letter_width,height=20)
 
-    # Start Game button
     signup_buttons["start_game"]=tk.Button(scanvas,text="Start Game",font=("Arial",14),bg='gray')
     signup_timers["start_game"]=tk.Label(scanvas,text="",font=("Arial",10),fg='red')
     sg_x,sg_y=200,300
@@ -216,6 +210,11 @@ def load_signup():
     start_game_height=70
     scanvas.create_window(sg_x,sg_y,window=signup_buttons["start_game"],width=start_game_width,height=start_game_height)
     scanvas.create_window(sg_x,sg_y+start_game_height/2+10,window=signup_timers["start_game"],width=100,height=20)
+
+    # Print validation message under the  Start Game button
+    signup_buttons["start_game_msg"] = tk.Label(scanvas,text="",font=("Arial",10),fg='blue')
+    scanvas.create_window(sg_x, sg_y+start_game_height, window=signup_buttons["start_game_msg"], width=200, height=20)
+
     signup_button_positions={}
     for i,letter in enumerate(letters):
         row=i//cols
@@ -239,6 +238,12 @@ def confirm_selection_signup(button_key):
             player_name+=button_key
             player_name_label.config(text="Name: "+player_name)
         elif button_key=='start_game':
+            # Check if player_name is empty for validation
+            if player_name.strip()=="":
+                # Show an alert message to the user
+                signup_buttons["start_game_msg"].config(text="Username is required")
+                return
+            # If not empty, proceed
             signup_screen_active=False
             signup_frame.destroy()
             load_game_window()
@@ -257,6 +262,8 @@ def check_cursor_over_button_signup(x,y):
     start_game_width=150
     start_game_height=70
     for k, btn in signup_buttons.items():
+        if k == "start_game_msg":
+            continue
         bx,by=signup_button_positions[k]
         if k in letters:
             bw,bh=letter_width,letter_height
@@ -276,8 +283,6 @@ def check_cursor_over_button_signup(x,y):
     else:
         reset_selection()
 
-# Game Window
-############################
 def confirm_selection_game(button_key):
     global selected_button, game_active, scoreboard_data, prize_won, player_name
     if selected_button==button_key and game_active:
@@ -375,8 +380,6 @@ def load_game_window():
     cursor=tk.Label(gcanvas,text="X",font=("Arial",12),fg='red')
     cursor_window=gcanvas.create_window(-100,-100,window=cursor)
 
-# Countdown Control for button select times
-############################
 def cancel_countdown():
     global countdown_after_id, hovered_button
     if countdown_after_id is not None:
@@ -387,7 +390,7 @@ def cancel_countdown():
 def start_countdown(button_key):
     global countdown_remaining, hovered_button
     hovered_button = button_key
-    countdown_remaining = 3  # 3 seconds now
+    countdown_remaining = 3
     update_countdown()
 
 def update_countdown():
@@ -404,9 +407,6 @@ def update_countdown():
     countdown_remaining -= 1
     countdown_after_id = root.after(1000, update_countdown)
 
-
-# Video Processing
-############################
 cap=cv2.VideoCapture(0)
 mp_hand=mp_hands.Hands(
     static_image_mode=False,
@@ -414,9 +414,6 @@ mp_hand=mp_hands.Hands(
     min_detection_confidence=0.7,
     min_tracking_confidence=0.7,
 )
-
-connection_drawing_spec = mp_drawing.DrawingSpec(color=(0,255,0), thickness=2, circle_radius=2)
-landmark_drawing_spec = mp_drawing.DrawingSpec(color=(255,0,0), thickness=2, circle_radius=2)
 
 def video_loop():
     if not cap.isOpened():
@@ -438,16 +435,12 @@ def video_loop():
             mp_drawing.draw_landmarks(
                 frame,
                 hand_landmarks,
-                mp_hands.HAND_CONNECTIONS,
-                landmark_drawing_spec,
-                connection_drawing_spec
+                mp_hands.HAND_CONNECTIONS
             )
-
             index_extended=is_finger_extended(hand_landmarks,'index')
             middle_extended=is_finger_extended(hand_landmarks,'middle')
             ring_extended=is_finger_extended(hand_landmarks,'ring')
             pinky_extended=is_finger_extended(hand_landmarks,'pinky')
-
             if index_extended and middle_extended and not ring_extended and not pinky_extended:
                 ix=hand_landmarks.landmark[mp_hands.HandLandmark.INDEX_FINGER_TIP]
                 mx=hand_landmarks.landmark[mp_hands.HandLandmark.MIDDLE_FINGER_TIP]
@@ -478,11 +471,10 @@ def video_loop():
 
     root.after(10,video_loop)
 
-
-# Start Screen Setup
-############################
 start_frame = tk.Frame(root)
 start_frame.pack(fill="both", expand=True)
+root.title("CS449-LOTTERY")
+root.geometry("400x400")
 
 start_canvas = tk.Canvas(start_frame, width=400, height=400)
 start_canvas.pack(fill="both", expand=True)
@@ -513,6 +505,9 @@ for k in start_buttons:
 cursor = tk.Label(start_canvas, text="X", font=("Arial",12), fg='red')
 cursor_window=start_canvas.create_window(-100,-100,window=cursor)
 current_canvas=start_canvas
+
+start_timers = start_timers
+start_buttons = start_buttons
 
 root.after(100,video_loop)
 root.mainloop()
